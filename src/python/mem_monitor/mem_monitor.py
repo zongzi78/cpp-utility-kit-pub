@@ -8,6 +8,7 @@ import configparser
 import warnings
 import psutil
 import os
+import platform
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Tuple, Dict, Any
@@ -328,9 +329,22 @@ def sample_process_memory(proc: psutil.Process) -> Tuple[Optional[dict], str]:
         )
         rss = convert_memory(mem_info.rss)  # 物理内存（工作集）
         vms = convert_memory(mem_info.vms)  # 虚拟内存
-        private = (
-            convert_memory(mem_info.private) if hasattr(mem_info, "private") else 0.0
-        )  # 专用工作集
+        # private = (
+        #     convert_memory(mem_info.private) if hasattr(mem_info, "private") else 0.0
+        # )  # 专用工作集
+        # 跨平台兼容获取专用工作集（修复Linux下private恒为0的问题）
+        private = 0.0
+        system_type = platform.system()
+        if system_type == "Windows":
+            # Windows系统沿用原有逻辑
+            private = convert_memory(mem_info.private) if hasattr(mem_info, "private") else 0.0
+        elif system_type == "Linux":
+            # Linux系统优先取uss（精准私有内存），无uss则用rss-shared估算
+            if hasattr(mem_info, "uss"):
+                private = convert_memory(mem_info.uss)
+            elif hasattr(mem_info, "shared"):
+                private = convert_memory(mem_info.rss - mem_info.shared)
+            # 无任何可用字段时保持0.0
 
         # 系统总内存
         total_system_mem = psutil.virtual_memory().total

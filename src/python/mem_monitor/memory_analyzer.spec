@@ -5,7 +5,7 @@ a = Analysis(
     ['memory_analyzer.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('fonts/simhei.ttf', 'fonts')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

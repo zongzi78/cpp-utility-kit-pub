@@ -10,6 +10,7 @@ try:
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    import matplotlib.font_manager as fm
 except ImportError:
     plt = None
 
@@ -21,6 +22,16 @@ UNIT_CONVERTER = {
     "MB": 1024 * 1024,
     "GB": 1024 * 1024 * 1024
 }
+
+# 字体文件配置 - 随程序分发的字体文件路径
+# 优先从程序同级的fonts文件夹读取simhei.ttf
+FONT_FILE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),  # 获取当前脚本所在目录
+    "fonts", 
+    "simhei.ttf"  # 你需要放在fonts文件夹中的字体文件
+)
+# 备选字体列表（按优先级排序）
+FONT_PRIORITY_LIST = ["simhei", "Microsoft YaHei", "DejaVu Sans", "WenQuanYi Micro Hei", "Heiti TC"]
 
 def format_duration(total_seconds: float) -> str:
     """
@@ -96,6 +107,48 @@ def get_pid_and_name_from_log(log_path: str) -> Tuple[Optional[int], Optional[st
     except Exception as e:
         print(f"[WARNING] 从日志文件获取PID和名称失败：{str(e)}")
     return (None, None)
+
+def setup_chinese_font():
+    """
+    配置matplotlib中文显示：
+    1. 优先使用本地fonts文件夹中的字体文件
+    2. 其次自动检测系统可用字体
+    3. 最后使用matplotlib自带字体兜底
+    """
+    # 1：使用本地分发的字体文件（最高优先级）
+    if os.path.exists(FONT_FILE_PATH):
+        try:
+            # 注册本地字体文件
+            font_prop = fm.FontProperties(fname=FONT_FILE_PATH)
+            fm.fontManager.addfont(FONT_FILE_PATH)
+            font_name = font_prop.get_name()
+            
+            # 设置字体
+            plt.rcParams["font.sans-serif"] = [font_name] + FONT_PRIORITY_LIST
+            plt.rcParams["axes.unicode_minus"] = False
+            # print(f"[INFO] 使用本地字体文件: {FONT_FILE_PATH} (字体名称: {font_name})")
+            return
+        except Exception as e:
+            print(f"[WARNING] 加载本地字体文件失败: {e}，尝试使用系统字体")
+    
+    # 2：自动检测系统可用字体
+    available_fonts = [f.name for f in fm.fontManager.ttflist]
+    selected_font = None
+    
+    for font_name in FONT_PRIORITY_LIST:
+        if font_name in available_fonts:
+            selected_font = font_name
+            break
+    
+    if selected_font:
+        plt.rcParams["font.sans-serif"] = [selected_font] + FONT_PRIORITY_LIST
+        plt.rcParams["axes.unicode_minus"] = False
+        # print(f"[INFO] 使用系统字体: {selected_font}")
+    else:
+        # 3：使用matplotlib自带字体作为最后的兜底
+        plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial Unicode MS"]
+        plt.rcParams["axes.unicode_minus"] = False
+        # print(f"[WARNING] 未找到中文支持字体，使用默认字体，可能导致中文显示异常")
 
 def analyze_log(
     log_path: str,
@@ -278,8 +331,8 @@ def analyze_log(
             if plt is None:
                 raise ImportError("matplotlib未安装")
             
-            plt.rcParams["font.sans-serif"] = ["SimHei", "DejaVu Sans"]  # 支持中文
-            plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
+            # 配置中文字体（优先本地字体文件）
+            setup_chinese_font()
             
             fig, ax = plt.subplots(figsize=(12, 6))
             if show_rss:

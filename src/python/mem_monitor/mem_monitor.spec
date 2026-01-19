@@ -5,7 +5,7 @@ a = Analysis(
     ['mem_monitor.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('fonts/simhei.ttf', 'fonts')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
